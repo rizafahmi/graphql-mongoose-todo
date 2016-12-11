@@ -1,17 +1,38 @@
 const graphql = require('graphql')
+const mongoose = require('mongoose')
 
-const TODOs = [
-  {
-    id: 128671,
-    title: 'Read emails',
-    completed: false
-  },
-  {
-    id: 21837,
-    title: 'Procrastinate a bit',
-    completed: true
+let TODO = mongoose.model('Todo', {
+  id: mongoose.Schema.Types.ObjectId,
+  title: String,
+  completed: Boolean
+})
+
+mongoose.connect('mongodb://localhost:27017/todo-graphql', (error) => {
+  if (error) console.error(error)
+  else console.log('mongo connected')
+})
+
+// --- SEEDING
+TODO.count({}, (err, count) => {
+  if (count < 1) {
+    console.log('Seeding...')
+    const TODOs = [
+      {
+        title: 'Read emails',
+        completed: false
+      },
+      {
+        title: 'Procrastinate a bit',
+        completed: true
+      }
+    ]
+
+    TODO.insertMany(TODOs, (err, docs) => {
+      if (err) console.error(err)
+      else console.log('Data seeded!', docs)
+    })
   }
-]
+})
 
 // --------- GRAPHQL Schema ---------------------
 const TodoType = new graphql.GraphQLObjectType({
@@ -34,16 +55,19 @@ const TodoType = new graphql.GraphQLObjectType({
 const queryType = new graphql.GraphQLObjectType({
   name: 'Query',
   description: 'TODO query type',
-  fields: () => {
-    return {
-      todos: {
-        type: new graphql.GraphQLList(TodoType),
-        resolve: () => {
-          return TODOs
-        }
+  fields: () => ({
+    todos: {
+      type: new graphql.GraphQLList(TodoType),
+      resolve: () => {
+        return new Promise((resolve, reject) => {
+          TODO.find((err, todos) => {
+            if (err) reject(err)
+            else resolve(todos)
+          })
+        })
       }
     }
-  }
+  })
 })
 
 const MutationAdd = {
