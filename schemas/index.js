@@ -4,7 +4,16 @@ const mongoose = require('mongoose')
 let TODO = mongoose.model('Todo', {
   id: mongoose.Schema.Types.ObjectId,
   title: String,
-  completed: Boolean
+  completed: Boolean,
+  category: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Category'
+  }
+})
+
+let Category = mongoose.model('Category', {
+  id: mongoose.Schema.Types.ObjectId,
+  name: String
 })
 
 mongoose.connect('mongodb://localhost:27017/todo-graphql', (error) => {
@@ -13,23 +22,47 @@ mongoose.connect('mongodb://localhost:27017/todo-graphql', (error) => {
 })
 
 // --- SEEDING
-TODO.count({}, (err, count) => {
+Category.count({}, (err, count) => {
   if (count < 1) {
-    console.log('Seeding...')
-    const TODOs = [
-      {
-        title: 'Read emails',
-        completed: false
-      },
-      {
-        title: 'Procrastinate a bit',
-        completed: true
-      }
-    ]
+    console.log('Category Seeding...')
 
-    TODO.insertMany(TODOs, (err, docs) => {
+    let categoryWork = new Category({
+      name: 'Work'
+    })
+
+    categoryWork.save((err) => {
       if (err) console.error(err)
-      else console.log('Data seeded!', docs)
+      else {
+        let workTodo = new TODO({
+          title: 'Doing some work',
+          category: categoryWork._id
+        })
+
+        workTodo.save()
+
+        let anotherWorkTodo = new TODO({
+          title: 'Doing something else at work',
+          category: categoryWork._id
+        })
+
+        anotherWorkTodo.save()
+      }
+    })
+
+    let categoryPersonal = new Category({
+      name: 'Personal'
+    })
+
+    categoryPersonal.save((err) => {
+      if (err) console.error(err)
+      else {
+        let personalTodo = new TODO({
+          title: 'Groceries',
+          category: categoryPersonal._id
+        })
+
+        personalTodo.save()
+      }
     })
   }
 })
