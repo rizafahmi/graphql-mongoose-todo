@@ -33,6 +33,7 @@ const TodoType = new graphql.GraphQLObjectType({
 
 const queryType = new graphql.GraphQLObjectType({
   name: 'Query',
+  description: 'TODO query type',
   fields: () => {
     return {
       todos: {
@@ -45,6 +46,38 @@ const queryType = new graphql.GraphQLObjectType({
   }
 })
 
+const MutationAdd = {
+  type: TodoType,
+  description: 'Add a TODO',
+  args: {
+    title: {
+      type: new graphql.GraphQLNonNull(graphql.GraphQLString),
+      name: 'Todo title'
+    }
+  },
+  resolve: (root, args) => {
+    let newTodo = new TODO({
+      title: args.title,
+      completed: false
+    })
+    newTodo.id = newTodo._id
+    return new Promise((resolve, reject) => {
+      newTodo.save((err) => {
+        if (err) reject(err)
+        else resolve(newTodo)
+      })
+    })
+  }
+}
+
+const MutationType = new graphql.GraphQLObjectType({
+  name: 'mutation',
+  fields: {
+    add: MutationAdd
+  }
+})
+
 module.exports = new graphql.GraphQLSchema({
-  query: queryType
+  query: queryType,
+  mutation: MutationType
 })
