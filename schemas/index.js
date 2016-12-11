@@ -4,7 +4,10 @@ const mongoose = require('mongoose')
 let TODO = mongoose.model('Todo', {
   id: mongoose.Schema.Types.ObjectId,
   title: String,
-  completed: Boolean,
+  completed: {
+    type: Boolean,
+    default: false
+  },
   category: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Category'
@@ -80,6 +83,9 @@ const TodoType = new graphql.GraphQLObjectType({
       },
       completed: {
         type: graphql.GraphQLBoolean
+      },
+      category: {
+        type: graphql.GraphQLString
       }
     }
   }
@@ -93,10 +99,12 @@ const queryType = new graphql.GraphQLObjectType({
       type: new graphql.GraphQLList(TodoType),
       resolve: () => {
         return new Promise((resolve, reject) => {
-          TODO.find((err, todos) => {
-            if (err) reject(err)
-            else resolve(todos)
-          })
+          TODO.find({})
+            .populate('category')
+            .exec((error, todos) => {
+              if (error) reject(error)
+              else resolve(todos)
+            })
         })
       }
     }
