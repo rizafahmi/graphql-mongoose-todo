@@ -1,6 +1,10 @@
 const graphql = require('graphql')
 const mongoose = require('mongoose')
 
+let CategorySchema = new mongoose.Schema({
+  name: String
+})
+
 let TODO = mongoose.model('Todo', {
   id: mongoose.Schema.Types.ObjectId,
   title: String,
@@ -8,15 +12,7 @@ let TODO = mongoose.model('Todo', {
     type: Boolean,
     default: false
   },
-  category: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Category'
-  }
-})
-
-let Category = mongoose.model('Category', {
-  id: mongoose.Schema.Types.ObjectId,
-  name: String
+  category: [CategorySchema]
 })
 
 mongoose.connect('mongodb://localhost:27017/todo-graphql', (error) => {
@@ -25,48 +21,18 @@ mongoose.connect('mongodb://localhost:27017/todo-graphql', (error) => {
 })
 
 // --- SEEDING
-Category.count({}, (err, count) => {
+TODO.count({}, (err, count) => {
   if (count < 1) {
-    console.log('Category Seeding...')
+    console.log('Seeding...')
 
-    let categoryWork = new Category({
-      name: 'Work'
+    let newTodo = new TODO({
+      title: 'nothing to do',
+      category: [
+        {name: 'Work'}
+      ]
     })
 
-    categoryWork.save((err) => {
-      if (err) console.error(err)
-      else {
-        let workTodo = new TODO({
-          title: 'Doing some work',
-          category: categoryWork._id
-        })
-
-        workTodo.save()
-
-        let anotherWorkTodo = new TODO({
-          title: 'Doing something else at work',
-          category: categoryWork._id
-        })
-
-        anotherWorkTodo.save()
-      }
-    })
-
-    let categoryPersonal = new Category({
-      name: 'Personal'
-    })
-
-    categoryPersonal.save((err) => {
-      if (err) console.error(err)
-      else {
-        let personalTodo = new TODO({
-          title: 'Groceries',
-          category: categoryPersonal._id
-        })
-
-        personalTodo.save()
-      }
-    })
+    newTodo.save()
   }
 })
 
@@ -85,10 +51,19 @@ const TodoType = new graphql.GraphQLObjectType({
         type: graphql.GraphQLBoolean
       },
       category: {
-        type: graphql.GraphQLString
+        type: new graphql.GraphQLList(categoryType)
       }
     }
   }
+})
+
+const categoryType = new graphql.GraphQLObjectType({
+  name: 'categoryQuery',
+  fields: () => ({
+    name: {
+      type: graphql.GraphQLString
+    }
+  })
 })
 
 const queryType = new graphql.GraphQLObjectType({
@@ -100,10 +75,12 @@ const queryType = new graphql.GraphQLObjectType({
       resolve: () => {
         return new Promise((resolve, reject) => {
           TODO.find({})
-            .populate('category')
+            .select({ title: 1, 'category.name': 1 })
             .exec((error, todos) => {
               if (error) reject(error)
-              else resolve(todos)
+              else {
+                resolve(todos)
+              }
             })
         })
       }
@@ -116,14 +93,17 @@ const MutationAdd = {
   description: 'Add a TODO',
   args: {
     title: {
-      type: new graphql.GraphQLNonNull(graphql.GraphQLString),
-      name: 'Todo title'
+      type: graphql.GraphQLString
+    },
+    category: {
+      type: new graphql.GraphQLList(graphql.GraphQLString)
     }
   },
   resolve: (root, args) => {
     let newTodo = new TODO({
       title: args.title,
-      completed: false
+      completed: false,
+      category: [{name: args.category}]
     })
     newTodo.id = newTodo._id
     return new Promise((resolve, reject) => {
